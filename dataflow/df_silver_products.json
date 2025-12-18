@@ -61,7 +61,7 @@
 				"          launch_date_clean = coalesce(     toDate(toString(launch_date), 'yyyy-MM-dd'),     toDate(toString(launch_date), 'dd/MM/yyyy'),     toDate(toString(launch_date), 'MMM dd yyyy'),     toDate(toString(launch_date), 'MMMM dd yyyy') )) ~> derivedColumn1",
 				"derivedColumn1 derive(price_std = toDecimal(replace(replace(replace(price, 'CAT-', ''), '€', ''), '$', ''), 10, 2),",
 				"          launch_date_std = toString(     coalesce(         toDate(launch_date, 'yyyy-MM-dd'),         toDate(launch_date, 'dd/MM/yyyy'),         toDate(launch_date, 'MM-dd-yyyy')     ) )) ~> derivedColumn2",
-				"derivedColumn2 filter(!isNull(price_std) && !isNull(launch_date_std)) ~> filter1",
+				"derivedColumn2 filter(!isNull(product_id) && !isNull(category_id) && !isNull(price_std) && !isNull(launch_date_std)) ~> filter1",
 				"filter1 cast(output(",
 				"          price_std as decimal(10,0) '000,000,000.000',",
 				"          launch_date_std as date 'yyyy-MM-dd'",
