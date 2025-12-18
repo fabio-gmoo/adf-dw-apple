@@ -1,0 +1,107 @@
+{
+	"name": "df_silver_products",
+	"properties": {
+		"folder": {
+			"name": "Silver"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_sql_products",
+						"type": "DatasetReference"
+					},
+					"name": "products"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_sql_silver_products",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "filter1"
+				},
+				{
+					"name": "cast1"
+				},
+				{
+					"name": "select1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          product_id as string,",
+				"          product_name as string,",
+				"          category_id as string,",
+				"          launch_date as string,",
+				"          price as string,",
+				"          notes as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> products",
+				"products derive(product_id_std = upper(trim(toString(product_id))),",
+				"          product_name_std = initCap(trim(toString(product_name))),",
+				"          category_id_std = upper(trim(toString(category_id))),",
+				"          price_clean_str = replace(replace(trim(toString(price)),'€',''),'$',''),",
+				"          launch_date_clean = coalesce(     toDate(toString(launch_date), 'yyyy-MM-dd'),     toDate(toString(launch_date), 'dd/MM/yyyy'),     toDate(toString(launch_date), 'MMM dd yyyy'),     toDate(toString(launch_date), 'MMMM dd yyyy') )) ~> derivedColumn1",
+				"derivedColumn1 derive(price_std = toDecimal(replace(replace(replace(price, 'CAT-', ''), '€', ''), '$', ''), 10, 2),",
+				"          launch_date_std = toString(     coalesce(         toDate(launch_date, 'yyyy-MM-dd'),         toDate(launch_date, 'dd/MM/yyyy'),         toDate(launch_date, 'MM-dd-yyyy')     ) )) ~> derivedColumn2",
+				"derivedColumn2 filter(!isNull(price_std) && !isNull(launch_date_std)) ~> filter1",
+				"filter1 cast(output(",
+				"          price_std as decimal(10,0) '000,000,000.000',",
+				"          launch_date_std as date 'yyyy-MM-dd'",
+				"     ),",
+				"     errors: true) ~> cast1",
+				"cast1 select(mapColumn(",
+				"          notes,",
+				"          product_id = product_id_std,",
+				"          product_name = product_name_std,",
+				"          category_id = category_id_std,",
+				"          price = price_std,",
+				"          launch_date = launch_date_std",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          product_id as string,",
+				"          product_name as string,",
+				"          category_id as string,",
+				"          launch_date as date,",
+				"          price as decimal(10,2)",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          product_id,",
+				"          product_name,",
+				"          category_id,",
+				"          launch_date,",
+				"          price",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}

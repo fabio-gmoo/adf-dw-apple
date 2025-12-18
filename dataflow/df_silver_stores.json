@@ -1,0 +1,125 @@
+{
+	"name": "df_silver_stores",
+	"properties": {
+		"folder": {
+			"name": "Silver"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_sql_stores",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_sql_silver_stores",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "LimpiezaDeTexto"
+				},
+				{
+					"name": "eliminarFilasVacias"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "EliminarDatosBasura"
+				},
+				{
+					"name": "derivedColumn3"
+				},
+				{
+					"name": "derivedColumn4"
+				},
+				{
+					"name": "derivedColumn5"
+				},
+				{
+					"name": "aggregate1"
+				},
+				{
+					"name": "select1"
+				},
+				{
+					"name": "derivedColumn6"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          store_id as string,",
+				"          store_name as string,",
+				"          city as string,",
+				"          country as string,",
+				"          opened as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source1",
+				"source1 derive(store_name = trim(replace(replace(store_name, \"'\", \"\"), ',', \"\")),",
+				"          country = trim(replace(country, \"'\", \"\")),",
+				"          city = trim(replace(city, \"'\", \"\"))) ~> LimpiezaDeTexto",
+				"LimpiezaDeTexto filter(!isNull(store_id) && !isNull(store_name)) ~> eliminarFilasVacias",
+				"eliminarFilasVacias derive(opening_year_clean = replace(toString(opened), 'O', '0')) ~> derivedColumn2",
+				"derivedColumn2 filter(!isInteger(store_name)) ~> EliminarDatosBasura",
+				"EliminarDatosBasura derive(opened = toDate(opening_year_clean + '-01-01', 'yyyy-MM-dd')) ~> derivedColumn3",
+				"derivedColumn3 derive(country = upper(country)) ~> derivedColumn4",
+				"derivedColumn4 derive(is_active = iif(isNull(opened), false(), true())) ~> derivedColumn5",
+				"derivedColumn5 aggregate(groupBy(store_id),",
+				"     store_name = first(store_name),",
+				"          city = first(city),",
+				"          country = first(country),",
+				"          opened = first(opened)) ~> aggregate1",
+				"aggregate1 select(mapColumn(",
+				"          store_id,",
+				"          store_name,",
+				"          city,",
+				"          country,",
+				"          opened",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 derive(store_name = iif(store_id == 'ST-9', 'Apple Park Visitor Center', store_name),",
+				"          city = iif(store_id == 'ST-9', 'Cupertino', city),",
+				"          country = iif(store_id == 'ST-9', 'UNITED STATES', upper(country)),",
+				"          opened = iif(store_id == 'ST-9', toDate('2017-01-01'), opened)) ~> derivedColumn6",
+				"derivedColumn6 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          store_id as string,",
+				"          store_name as string,",
+				"          city as string,",
+				"          country as string,",
+				"          opened_date as date",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          store_id,",
+				"          store_name,",
+				"          city,",
+				"          country,",
+				"          opened_date = opened",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}
