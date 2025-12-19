@@ -1,0 +1,80 @@
+{
+	"name": "df_golden_repair_status",
+	"properties": {
+		"folder": {
+			"name": "Gold"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_sql_silver_warranty",
+						"type": "DatasetReference"
+					},
+					"name": "warranty"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_golden_repair_status",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "filter1"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "select1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          claim_id as string,",
+				"          claim_date as date,",
+				"          sales_id as string,",
+				"          repair_status as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> warranty",
+				"warranty filter(!isNull(claim_id) && !isNull(sales_id) && !isNull(repair_status)) ~> filter1",
+				"filter1 derive(status_priority = iif(repair_status == 'In Progress', 1, iif(repair_status == 'Pending', 2, 3)),",
+				"          is_resolved = iif(repair_status == 'Completed', 1, 0)) ~> derivedColumn1",
+				"derivedColumn1 select(mapColumn(",
+				"          claim_id,",
+				"          claim_date,",
+				"          sales_id,",
+				"          repair_status,",
+				"          status_priority,",
+				"          is_resolved",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          repair_status_key as integer,",
+				"          repair_status as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     recreate:true,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
+			]
+		}
+	}
+}

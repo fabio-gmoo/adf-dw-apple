@@ -38,6 +38,9 @@
 				},
 				{
 					"name": "select1"
+				},
+				{
+					"name": "filter1"
 				}
 			],
 			"scriptLines": [
@@ -70,7 +73,8 @@
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> select1",
-				"select1 sink(allowSchemaDrift: true,",
+				"select1 filter(!isNull(sales_id) && !isNull(quantity) && !isNull(sales_date)) ~> filter1",
+				"filter1 sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
 				"          sales_id as string,",

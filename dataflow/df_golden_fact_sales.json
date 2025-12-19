@@ -1,0 +1,119 @@
+{
+	"name": "df_golden_fact_sales",
+	"properties": {
+		"folder": {
+			"name": "Gold"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_sql_silver_sales",
+						"type": "DatasetReference"
+					},
+					"name": "sales"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_golden_dim_producto",
+						"type": "DatasetReference"
+					},
+					"name": "dimproduct"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_golden_dim_store",
+						"type": "DatasetReference"
+					},
+					"name": "dimstore"
+				}
+			],
+			"sinks": [],
+			"transformations": [
+				{
+					"name": "join1"
+				},
+				{
+					"name": "join2"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "select1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          sales_id as string,",
+				"          sales_date as date,",
+				"          store_id as string,",
+				"          product_id as string,",
+				"          quantity as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> sales",
+				"source(output(",
+				"          product_key as integer,",
+				"          product_id as string,",
+				"          product_name as string,",
+				"          category_id as string,",
+				"          category_name as string,",
+				"          launch_date as date,",
+				"          price as decimal(10,2)",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> dimproduct",
+				"source(output(",
+				"          store_key as integer,",
+				"          store_id as string,",
+				"          store_name as string,",
+				"          city as string,",
+				"          country as string,",
+				"          opened_date as date",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> dimstore",
+				"sales, dimproduct join(sales@product_id == dimproduct@product_id,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join1",
+				"join1, dimstore join(sales@store_id == dimstore@store_id,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join2",
+				"join2 derive(total_amount = quantity * price) ~> derivedColumn1",
+				"derivedColumn1 select(mapColumn(",
+				"          sales_id,",
+				"          sales_date,",
+				"          store_id = sales@store_id,",
+				"          product_id = sales@product_id,",
+				"          quantity,",
+				"          product_key,",
+				"          product_name,",
+				"          category_id,",
+				"          category_name,",
+				"          launch_date,",
+				"          price,",
+				"          store_key,",
+				"          store_name,",
+				"          city,",
+				"          country,",
+				"          opened_date,",
+				"          total_amount",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1"
+			]
+		}
+	}
+}
